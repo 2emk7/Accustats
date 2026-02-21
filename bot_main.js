@@ -1,6 +1,6 @@
 const mineflayer = require('mineflayer');
 const Hypixel = require('hypixel-api-reborn');
-const HYPIXEL_API_KEY = 'ENTER YOUR API KEY HERE';
+const HYPIXEL_API_KEY = 'ENTER API HERE';
 const hypixel = new Hypixel.Client(HYPIXEL_API_KEY);
 const prefix = ['/gc', '/r'];
 const statList = ['fkdr', 'finals', 'wlr', 'finaldeaths', 'wins', 'losses', 'level', 'bblr', 'blr', 'beds', 'bedslost'];
@@ -9,7 +9,7 @@ const gamemodeList = ['overall', 'solo', 'solos', 'doubles', 'duos', '2s', 'thre
 // -------------------- Bot Setup --------------------
 const bot = mineflayer.createBot({
     host: 'mc.hypixel.net',
-    username: 'ENTER MICROSOFT EMAIL HERE',
+    username: 'ENTER EMAIL HERE',
     auth: 'microsoft',
     version: '1.8.9'
 });
@@ -21,20 +21,19 @@ bot.on('message', async (message) => {
 
 
     const currentPrefix = text.includes('Guild >') ? prefix[0] : prefix[1];
-
+    
     // Check for commands in both guild and private messages
     if (text.includes('?bw') && !(text.split('?bw')[1]?.trim())) {
+        getName(text, currentPrefix);
         console.log('Detected ?bw command without arguments');
-        bot.chat(`${currentPrefix} Error: no arguments`)
-        return;
     }
-    console.log(`passed no args check`);
     if (text.includes('?help')) {
         bothelp(currentPrefix);
     } else if (text.includes('?calc')) {
         calc(text, currentPrefix);
     } else if (text.includes('?bw')) {
-        handleBwCommand(text, currentPrefix);
+        console.log('Detected ?bw command with arguments');
+        handleBwCommand(text, currentPrefix, getName(text, currentPrefix));
     } else if (text.includes('You cannot say the same message twice!')) {
         bot.chat(`${currentPrefix} Error: Hypixel doesnt allow repeat outputs`);
     }
@@ -43,6 +42,67 @@ bot.on('message', async (message) => {
 function bothelp(prefix) {
     bot.chat(`${prefix} ?calc <username> <statRatio> <target#>`);
     bot.chat(`${prefix} ?bw <username> [optional stat] [optional gamemode]`);
+}
+//--------------------- Get Name  --------------------
+function getName(text, currentPrefix) {
+    console.log('running getName function');
+    let name;
+
+    if (text.includes('?bw') && text.split('?bw')[1]?.trim()) { //if theres something after ?bw
+        name = text.split('?bw ')[1].split(' ')[0]; // get first argument after ?bw
+        console.log(`53 Identified name: ${name}`);
+
+        if (!(statList.includes(name.toLowerCase()) || gamemodeList.includes(name.toLowerCase()))) { // if first argument is not a stat or gamemode
+            console.log(`56 Identified username: ${name}`);
+            return name;
+        } else { // No username provided or first argument is a stat/gamemode
+            if (currentPrefix === prefix[0]) { // Guild
+
+                name = text.split('Guild > ')[1].split(":")[0].split(" ");
+                console.log(`63 Identified username: ${name}`);
+                for (let i = 0; i < name.length; i++) {
+                    if (!name[i].includes('[')) {
+                        console.log(name[i])
+                        return name[i]
+                    }
+                }
+
+            } else { // Private
+                let name = text.split('From ')[1].split(":")[0].split(" ");
+                console.log(`73 Identified username: ${name}`);
+                for (let i = 0; i < name.length; i++) {
+                    if (!name[i].includes('[')) {
+                        console.log(name[i])
+                        return name[i]
+                    }
+                }
+            }
+
+        }
+    }else { // No username provided or first argument is a stat/gamemode
+            if (currentPrefix === prefix[0]) { // Guild
+
+                name = text.split('Guild > ')[1].split(":")[0].split(" ");
+                console.log(`86 Identified username: ${name}`);
+                for (let i = 0; i < name.length; i++) {
+                    if (!name[i].includes('[')) {
+                        console.log(name[i])
+                        return name[i]
+                    }
+                }
+
+            } else { // Private
+                let name = text.split('From ')[1].split(":")[0].split(" ");
+                console.log(`96 Identified username: ${name}`);
+                for (let i = 0; i < name.length; i++) {
+                    if (!name[i].includes('[')) {
+                        console.log(name[i])
+                        return name[i]
+                    }
+                }
+            }
+
+        }
 }
 
 //--------------------- calc function --------------------
@@ -146,26 +206,29 @@ async function get_GamemodeClass(player, gamemode) {
 }
 
 //--------------------- get stats and output --------------------
-async function handleBwCommand(text, prefix) {
+async function handleBwCommand(text, prefix, username) {
     try {
 
-        const afterBWtext = text.split('?bw ')[1];
-        if (!afterBWtext) {
-            bot.chat(`${prefix} Error: No arg provided. Use: ?bw [username] [stat] [gamemode]`);
-            return;
-        }
-
-        console.log(`afterbw: "${afterBWtext}"`);
-        const parts = afterBWtext.split(' ');
-        console.log(`Split parts:`, parts);
-
-        let username = null;
         let stat = null;
         let gamemode = 'overall';
+        
+        const afterBWtext = text.split('?bw')[1]?.trim() || ''; // part of messaege after ?bw, if nothing after it will be undefined
+        const afterbwArray = afterBWtext === '' ? [] : afterBWtext.split(' '); // split into an array, will have general error if afterBWtext is undefined
+
+        console.log(`After splitting '?bw':`, afterBWtext);
+        console.log(`Split parts:`, afterbwArray);
+        
+        if (afterbwArray[0] === username) {
+            console.log(`Username '${username}' correctly identified as first argument.`);
+        }
+        else{
+            console.warn(`Warning: Expected username '${username}' as first argument, but got '${afterbwArray[0]}'.`);
+        }
 
 
-        for (let i = 0; i < parts.length; i++) {
-            const part = parts[i].toLowerCase();
+
+        for (let i = 0; i < afterbwArray.length; i++) {
+            const part = afterbwArray[i].toLowerCase();
 
             if (i === 0 && !statList.includes(part) && !gamemodeList.includes(part)) {
                 username = part;
@@ -189,7 +252,7 @@ async function handleBwCommand(text, prefix) {
             console.error('Hypixel API Error:', error.message);
             return;
         }
-
+        console.log(stat, gamemode);
         if (!stat && gamemode === 'overall') {
             const level = player.stats.bedwars.level || 0;
             const overallStats = player.stats.bedwars;
@@ -226,6 +289,7 @@ async function handleBwCommand(text, prefix) {
                 const statKey = await get_statValue(stat);
                 output = gamemodeStats[statKey] || 0;
             }
+
         } catch (error) {
             bot.chat(`${prefix} Error: Could not retrieve stat '${stat}'.`);
             console.error('Stat retrieval error:', error.message);
