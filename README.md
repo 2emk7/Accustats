@@ -1,22 +1,26 @@
 **Documentation on how to work the bot**
 
-Bot name : **Tigermarsh**
+Bot name : **accusant**
 Prefix : **?**
 Run commands in
 Guild Chat: /gc ?command
-Direct Message: /msg Tigermarsh ?command
+Direct Message: /msg accusant ?command
 
 **BASIC STATS**
 
 with no specific stat, returns important stats, with a specific stat will return only that stat
 
-Command : ?bw <username> [stat] [gamemode]
+Command : ?bw [username] [stat] [gamemode]
 
-Example) ?bw ableness ---> Tigermarsh[G3]: [82✫] ableness's FKDR-17.71, BBLR-4.75, WLR-5.29, FINALS-2125, WINS-593
+Example) ?bw ---> accusant[G3]: [82✫] ableness's FKDR-17.71, BBLR-4.75, WLR-5.29, FINALS-2125, WINS-593 (if the command is initiated by ableness)
 
-Example) ?bw 4xes fkdr ---> Tigermarsh[G3]: 4xes's FKDR: 49.83
+Example) ?bw ableness ---> accusant[G3]: [82✫] ableness's FKDR-17.71, BBLR-4.75, WLR-5.29, FINALS-2125, WINS-593
 
-Example) ?bw tynis fkdr duos —> Tigermarsh[G3]: tynis's duos FKDR: 6.45
+Example) ?bw 4xes fkdr ---> accusant[G3]: 4xes's FKDR: 49.83
+
+Example) ?bw fkdr ---> accusant[G3]: ableness's FKDR: 49.83 (if the command is initiated by ableness)
+
+Example) ?bw tynis fkdr duos —> accusant[G3]: tynis's duos FKDR: 6.45
 
 *Accepted stats*
 - fkdr
@@ -47,7 +51,7 @@ Calculate how many more of a stat you need to reach a target ratio.
 
 Command : ?calc <username> <stat> <target>
 
-Example) ?calc ableness fkdr 20 ---> Tigermarsh[G3]: TARGET FKDR-> 20 NEEDED: 275
+Example) ?calc ableness fkdr 20 ---> accusant[G3]: TARGET FKDR-> 20 NEEDED: 275
 
 *Accepted stats*
 - fkdr
@@ -65,6 +69,7 @@ Command: ?help
 **QUICK REFERENCE**
 
 *BASIC STATS:*
+?bw                             # All main stats for the sender
 ?bw <player>                    # All main stats
 ?bw <player> <stat>             # Specific stat (overall)
 ?bw <player> <stat> <mode>      # Stat in specific mode
