@@ -60,11 +60,13 @@ Example) ?calc ableness fkdr 20 ---> accusant[G3]: TARGET FKDR-> 20 NEEDED: 275
 
 *either are accepted
 
-**HELP COMMAND**
+**URCHIN**
 
-Get support and join the Guild Discord
+Lookup a player and see if their urchin tag & description (if they have one)
 
-Command: ?help
+Command : ?u <username>
+
+Example) ?u aawn -----> accusant [G3]: aawn: closet_cheater - legitscaff, likely autotool & more
 
 **QUICK REFERENCE**
 
@@ -79,5 +81,6 @@ Command: ?help
 ?calc <player> wlr <target>     # Wins needed
 ?calc <player> blr <target>     # Beds needed
 
-*HELP:*
-?help                           # Get support Discord
+*URCHIN*
+?u <player>                     # Check urchin tag
+
