@@ -68,6 +68,16 @@ Command : ?u <username>
 
 Example) ?u aawn -----> accusant [G3]: aawn: closet_cheater - legitscaff, likely autotool & more
 
+**SESSION TRACKER**
+
+Track session stats
+
+Command : ?session <start/stop/view>
+
+start -> starts tracking your stats
+stop -> stops tracking your stats
+view -> view your session stats
+
 **QUICK REFERENCE**
 
 *BASIC STATS:*

@@ -1,11 +1,14 @@
 const mineflayer = require('mineflayer');
 const Hypixel = require('hypixel-api-reborn');
+const fs = require('fs');
 const URCHIN_API_KEY = ""; // Enter Urchin API Key
 const HYPIXEL_API_KEY = ''; // Enter Hypixel API Key 
 const hypixel = new Hypixel.Client(HYPIXEL_API_KEY);
+const sessionfilePath = './session.json';
 const prefix = ['/gc', '/r'];
 const statList = ['fkdr', 'finals', 'wlr', 'finaldeaths', 'wins', 'losses', 'level', 'bblr', 'blr', 'beds', 'bedslost'];
 const gamemodeList = ['overall', 'solo', 'solos', 'doubles', 'duos', '2s', 'threes', 'trios', '3s', 'fours', '4s'];
+const sessionCommands = ['start', 'stop', 'view'];
 
 // -------------------- Bot Setup --------------------
 const bot = mineflayer.createBot({
@@ -28,13 +31,96 @@ bot.on('message', async (message) => {
     } else if (text.includes('?u')) {
         checkUrchin(text, currentPrefix);
     } else if (text.includes('?bw')) {
-        console.log('Detected ?bw command with arguments');
-        handleBwCommand(text, currentPrefix, getName(text, currentPrefix));
+        handleBwCommand(text, currentPrefix, getName(text, currentPrefix, '?bw'));
+    } else if(text.includes('?session')){
+        trackSession(text, currentPrefix, getName(text, currentPrefix, '?session'));
     } else if (text.includes('You cannot say the same message twice!')) {
         bot.chat(`${currentPrefix} Error: Hypixel doesnt allow repeat outputs`);
     }
 });
+//--------------------- Session Tracker  --------------------
+async function trackSession(text, currentPrefix, name) {
+    const afterTrackText = text.split('?session ')[1];
 
+    if (!afterTrackText) {
+        bot.chat(`${currentPrefix} Error: ?session <start/stop>`);
+        return;
+    }else if (afterTrackText.toLowerCase() === 'start') {
+        bot.chat(`${currentPrefix} start tracking ${name}`);
+        startSession(name);
+        return;
+    } else if (afterTrackText.toLowerCase() === 'stop') {
+        await viewSession(currentPrefix, name);
+        deleteSession(currentPrefix, name);
+        return;
+    }else if (afterTrackText.toLowerCase() === 'view') {
+        viewSession(currentPrefix, name);
+        return;
+    }
+}
+
+async function startSession(name) {
+    const player = await hypixel.getPlayer(name);
+
+     if (fs.existsSync(sessionfilePath)) {
+        try {
+            const raw = fs.readFileSync(sessionfilePath, 'utf8');
+            sessions = raw ? JSON.parse(raw) : {}; 
+        } catch (err) {
+            console.error("Error parsing JSON:", err);
+            sessions = {}; 
+        }
+    }
+
+    sessions[name] = {
+        start: Date.now(),
+        finalKills: player.stats.bedwars.finalKills || 0,
+        finalDeaths: player.stats.bedwars.finalDeaths || 0,
+        wins: player.stats.bedwars.wins || 0,
+        losses: player.stats.bedwars.losses || 0, 
+        bedsBroken: player.stats.bedwars.beds?.broken || 0,
+        bedsLost: player.stats.bedwars.beds?.lost || 0
+    };
+
+    fs.writeFileSync(sessionfilePath, JSON.stringify(sessions, null, 2));
+}
+
+async function viewSession(currentPrefix, name) {
+    const player = await hypixel.getPlayer(name);
+    const bw = player.stats.bedwars;
+    const sessions = JSON.parse(fs.readFileSync(sessionfilePath, 'utf8'));
+
+    if (!sessions[name]) {
+        bot.chat(`${currentPrefix} No active session for ${name}`);
+        return;
+    }
+    
+    const session = sessions[name];
+     const diff = {
+        finalKills: bw.finalKills - session.finalKills,
+        finalDeaths: bw.finalDeaths - session.finalDeaths,
+        wins: bw.wins - session.wins,
+        losses: bw.losses - session.losses,
+        bedsBroken: (bw.beds?.broken || 0) - session.bedsBroken,
+        bedsLost: (bw.beds?.lost || 0) - session.bedsLost
+    };
+
+    bot.chat(`${currentPrefix} SESSION: FK ${diff.finalKills || 0} | FD ${diff.finalDeaths || 0} | W ${diff.wins || 0} | L ${diff.losses || 0} | BB ${diff.bedsBroken || 0}`);
+}
+
+function deleteSession(currentPrefix, name) {
+    const sessions = JSON.parse(fs.readFileSync(sessionfilePath, 'utf8'));
+
+    if (sessions[name]) {
+        delete sessions[name];
+        fs.writeFileSync(sessionfilePath, JSON.stringify(sessions, null, 2));
+        bot.chat(`${currentPrefix} Session for ${name} stopped`);
+        return;
+    } else {
+        bot.chat(`${currentPrefix} No active session for ${name}`);
+        return;
+    }
+}
 //--------------------- Urchin  --------------------
 async function checkUrchin(text, currentPrefix) {
 
@@ -69,67 +155,37 @@ async function checkUrchin(text, currentPrefix) {
 }
 
 //--------------------- Get Name  --------------------
-function getName(text, currentPrefix) {
+function getName(text, currentPrefix, command) {
     console.log('running getName function');
     let name;
+    const afterCommand = text.split(command)[1]?.trim(); //get anything after the command
 
-    if (text.includes('?bw') && text.split('?bw')[1]?.trim()) { //if theres something after ?bw
-        name = text.split('?bw ')[1].split(' ')[0]; // get first argument after ?bw
-        console.log(`78 Identified name: ${name}`);
+    if (afterCommand) { //if theres something after ?bw
+        name = afterCommand.split(' ')[0]; // get first argument after the command
 
-        if (!(statList.includes(name.toLowerCase()) || gamemodeList.includes(name.toLowerCase()))) { // if first argument is not a stat or gamemode
-            console.log(`81 Identified username: ${name}`);
+
+        if (!statList.includes(name.toLowerCase()) && !gamemodeList.includes(name.toLowerCase()) && !sessionCommands.includes(name.toLowerCase())) { // if first argument is not a stat or gamemode, its the username
+            console.log(`100 Identified name: ${name}`);
             return name;
-        } else { // No username provided or first argument is a stat/gamemode
-            if (currentPrefix === prefix[0]) { // Guild
-
-                name = text.split('Guild > ')[1].split(":")[0].split(" ");
-                console.log(`87 Identified username: ${name}`);
-                for (let i = 0; i < name.length; i++) {
-                    if (!name[i].includes('[')) {
-                        console.log(name[i])
-                        return name[i]
-                    }
-                }
-
-            } else { // Private
-                let name = text.split('From ')[1].split(":")[0].split(" ");
-                console.log(`97 Identified username: ${name}`);
-                for (let i = 0; i < name.length; i++) {
-                    if (!name[i].includes('[')) {
-                        console.log(name[i])
-                        return name[i]
-                    }
-                }
-            }
-
         }
-    }else { // No username provided or first argument is a stat/gamemode
-            if (currentPrefix === prefix[0]) { // Guild
+    }
 
-                name = text.split('Guild > ')[1].split(":")[0].split(" ");
-                console.log(`111 Identified username: ${name}`);
-                for (let i = 0; i < name.length; i++) {
-                    if (!name[i].includes('[')) {
-                        console.log(name[i])
-                        return name[i]
-                    }
-                }
+    let senderName;
 
-            } else { // Private
-                let name = text.split('From ')[1].split(":")[0].split(" ");
-                console.log(`121 Identified username: ${name}`);
-                for (let i = 0; i < name.length; i++) {
-                    if (!name[i].includes('[')) {
-                        console.log(name[i])
-                        return name[i]
-                    }
-                }
-            }
+    if (currentPrefix === prefix[0]) { // Guild
+        senderName = text.split('Guild > ')[1].split(":")[0].split(" ");
+    } else { // Private
+        senderName = text.split('From ')[1].split(":")[0].split(" ");
+    }
 
+    for (let i = 0; i < senderName.length; i++) {
+        if (!senderName[i].includes('[')) {
+            console.log(`115 Identified sender username: ${senderName[i]}`);
+            return senderName[i];
         }
+    }
 }
-
+    
 //--------------------- calc function --------------------
 async function calc(text, prefix) {
     const afterCalctext = text.split('?calc ')[1];
