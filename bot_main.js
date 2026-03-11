@@ -1,4 +1,5 @@
 const mineflayer = require('mineflayer');
+const translate = require("translate-google");
 const Hypixel = require('hypixel-api-reborn');
 const fs = require('fs');
 const URCHIN_API_KEY = ""; // Enter Urchin API Key
@@ -30,6 +31,8 @@ bot.on('message', async (message) => {
         calc(text, currentPrefix);
     } else if (text.includes('?u')) {
         checkUrchin(text, currentPrefix);
+    } else if (text.includes('?t')) {
+        translatetext(text, currentPrefix);
     } else if (text.includes('?bw')) {
         handleBwCommand(text, currentPrefix, getName(text, currentPrefix, '?bw'));
     } else if(text.includes('?session')){
@@ -38,6 +41,18 @@ bot.on('message', async (message) => {
         bot.chat(`${currentPrefix} Error: Hypixel doesnt allow repeat outputs`);
     }
 });
+//--------------------- Translate  --------------------
+async function translatetext(text, currentPrefix) {
+    const afterTranslatetext = text.split('?t ')[1];
+    if (!afterTranslatetext) {
+        bot.chat(`${currentPrefix} Error: ?t <text>`);
+        return;
+    }else{
+        const result = await translate(afterTranslatetext, { to: "en" });
+        bot.chat(`${currentPrefix} ${result}`);
+    }
+
+}
 //--------------------- Session Tracker  --------------------
 async function trackSession(text, currentPrefix, name) {
     const afterTrackText = text.split('?session ')[1];
@@ -374,6 +389,7 @@ async function handleBwCommand(text, prefix, username) {
 
 bot.on('spawn', () => {
     console.log('Bot spawned');
+    console.log(translate);
 });
 
 bot.on('error', console.error);
