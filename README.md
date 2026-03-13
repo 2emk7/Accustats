@@ -78,6 +78,12 @@ start -> starts tracking your stats
 stop -> stops tracking your stats
 view -> view your session stats
 
+**Translator**
+
+Translates messages into english
+
+Command : ?t <message>
+
 **QUICK REFERENCE**
 
 *BASIC STATS:*

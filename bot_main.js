@@ -1,10 +1,10 @@
 const mineflayer = require('mineflayer');
 const translate = require("translate-google");
 const Hypixel = require('hypixel-api-reborn');
+require('dotenv').config();
 const fs = require('fs');
-const URCHIN_API_KEY = ""; // Enter Urchin API Key
-const HYPIXEL_API_KEY = ''; // Enter Hypixel API Key 
-const hypixel = new Hypixel.Client(HYPIXEL_API_KEY);
+const URCHIN_API_KEY = process.env.URCHIN_API_KEY;
+const hypixel = new Hypixel.Client(process.env.HYPIXEL_API_KEY);
 const sessionfilePath = './session.json';
 const prefix = ['/gc', '/r'];
 const statList = ['fkdr', 'finals', 'wlr', 'finaldeaths', 'wins', 'losses', 'level', 'bblr', 'blr', 'beds', 'bedslost'];
@@ -14,7 +14,7 @@ const sessionCommands = ['start', 'stop', 'view'];
 // -------------------- Bot Setup --------------------
 const bot = mineflayer.createBot({
     host: 'mc.hypixel.net',
-    username: '', // Enter Microsoft email
+    username: process.env.EMAIL, // Enter Microsoft email
     auth: 'microsoft',
     version: '1.8.9'
 });
@@ -389,7 +389,6 @@ async function handleBwCommand(text, prefix, username) {
 
 bot.on('spawn', () => {
     console.log('Bot spawned');
-    console.log(translate);
 });
 
 bot.on('error', console.error);
