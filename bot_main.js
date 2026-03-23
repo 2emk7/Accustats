@@ -20,9 +20,6 @@ const bot = mineflayer.createBot({
 });
 
 //--------------------- Parse messages --------------------
-function parseMessage(message) { // will return the message as an array
-    return splitmessage = message.split(" ")
-}
 
 function getSenderFromStart(message) {
     if (!message.startsWith(GUILD_PREFIX) && !message.startsWith(DM_PREFIX)) {
@@ -67,8 +64,7 @@ bot.on('message', async (message) => {
     const text = message.toString().trim();
     console.log(`[CHAT] ${text}`);
 
-    let parsed = parseMessage(text) 
-    let splitmessage = parsed;
+    let splitmessage = text.split(" ")
     let {senderusername, replyprefix} = getSenderFromStart(text);   
     if (!senderusername || !replyprefix) {
         return;
@@ -92,10 +88,9 @@ bot.on('message', async (message) => {
 async function translatetext(text, prefix) {
     const index = text.indexOf('?t');
     let sentance = text.slice(index + 1);
-    if (sentance.length > 1){
+    if (sentance.length >= 1){
         sentance = sentance.join(' ');
     }
-    
     if (!sentance) {
         bot.chat(`${prefix} Error: ?t <text>`);
         return;
