@@ -6,69 +6,123 @@ const fs = require('fs');
 const URCHIN_API_KEY = process.env.URCHIN_API_KEY;
 const hypixel = new Hypixel.Client(process.env.HYPIXEL_API_KEY);
 const sessionfilePath = './session.json';
-const prefix = ['/gc', '/r'];
 const statList = ['fkdr', 'finals', 'wlr', 'finaldeaths', 'wins', 'losses', 'level', 'bblr', 'blr', 'beds', 'bedslost'];
 const gamemodeList = ['overall', 'solo', 'solos', 'doubles', 'duos', '2s', 'threes', 'trios', '3s', 'fours', '4s'];
-const sessionCommands = ['start', 'stop', 'view'];
+const GUILD_PREFIX = "Guild > "
+const DM_PREFIX = "From "
 
 // -------------------- Bot Setup --------------------
 const bot = mineflayer.createBot({
     host: 'mc.hypixel.net',
-    username: process.env.EMAIL, // Enter Microsoft email
+    username: process.env.EMAIL,
     auth: 'microsoft',
     version: '1.8.9'
 });
+
+//--------------------- Parse messages --------------------
+function parseMessage(message) { // will return the message as an array
+    return splitmessage = message.split(" ")
+}
+
+function getSenderFromStart(message) {
+    if (!message.startsWith(GUILD_PREFIX) && !message.startsWith(DM_PREFIX)) {
+        return {
+            replyprefix: null,
+            senderusername: null
+        };
+    }
+
+    let beforeColon = message.slice(0, message.indexOf(":"));
+
+if (message.startsWith(GUILD_PREFIX)) {
+    beforeColon = beforeColon.slice(GUILD_PREFIX.length); // removes "Guild > "
+} else {
+    beforeColon = beforeColon.slice(DM_PREFIX.length); // removes "From "
+}
+
+let senderusername;
+const splitmessage = beforeColon.split(" ");
+for (let i = 0; i < splitmessage.length; i++) {
+    if (!splitmessage[i].includes('[')) {
+        senderusername = splitmessage[i];
+        break;
+    }
+}
+
+    if (message.startsWith(GUILD_PREFIX)) {
+        return {
+            replyprefix: "/gc",
+            senderusername: senderusername
+        };
+    } else if (message.startsWith(DM_PREFIX)) {
+        return {
+            replyprefix: `/msg ${senderusername}`,  
+            senderusername: senderusername
+        };
+    }
+}
 
 //--------------------- recognize messages --------------------
 bot.on('message', async (message) => {
     const text = message.toString().trim();
     console.log(`[CHAT] ${text}`);
 
-
-    const currentPrefix = text.includes('Guild >') ? prefix[0] : prefix[1];
+    let parsed = parseMessage(text) 
+    let splitmessage = parsed;
+    let {senderusername, replyprefix} = getSenderFromStart(text);   
+    if (!senderusername || !replyprefix) {
+        return;
+    }
 
     if (text.includes('?calc')) {
-        calc(text, currentPrefix);
+        calc(splitmessage, replyprefix);
     } else if (text.includes('?u')) {
-        checkUrchin(text, currentPrefix);
+        checkUrchin(splitmessage, replyprefix);
     } else if (text.includes('?t')) {
-        translatetext(text, currentPrefix);
+        translatetext(splitmessage, replyprefix);
     } else if (text.includes('?bw')) {
-        handleBwCommand(text, currentPrefix, getName(text, currentPrefix, '?bw'));
+        handleBwCommand(splitmessage, replyprefix, senderusername);
     } else if(text.includes('?session')){
-        trackSession(text, currentPrefix, getName(text, currentPrefix, '?session'));
+        trackSession(splitmessage, replyprefix, senderusername);
     } else if (text.includes('You cannot say the same message twice!')) {
-        bot.chat(`${currentPrefix} Error: Hypixel doesnt allow repeat outputs`);
+        bot.chat(`${replyprefix} Error: Hypixel doesnt allow repeat outputs`);
     }
 });
 //--------------------- Translate  --------------------
-async function translatetext(text, currentPrefix) {
-    const afterTranslatetext = text.split('?t ')[1];
-    if (!afterTranslatetext) {
-        bot.chat(`${currentPrefix} Error: ?t <text>`);
+async function translatetext(text, prefix) {
+    const index = text.indexOf('?t');
+    let sentance = text.slice(index + 1);
+    if (sentance.length > 1){
+        sentance = sentance.join(' ');
+    }
+    
+    if (!sentance) {
+        bot.chat(`${prefix} Error: ?t <text>`);
         return;
     }else{
-        const result = await translate(afterTranslatetext, { to: "en" });
-        bot.chat(`${currentPrefix} ${result}`);
+        const result = await translate(sentance, { to: "en" });
+        bot.chat(`${prefix} ${result}`);
     }
 
 }
+
 //--------------------- Session Tracker  --------------------
 async function trackSession(text, currentPrefix, name) {
-    const afterTrackText = text.split('?session ')[1];
+    const index = text.indexOf('?session');
+    let startorstop = text[index + 1]
 
-    if (!afterTrackText) {
+    if (!startorstop) {
         bot.chat(`${currentPrefix} Error: ?session <start/stop>`);
         return;
-    }else if (afterTrackText.toLowerCase() === 'start') {
+    }else if (startorstop.toLowerCase() === 'start') {
         bot.chat(`${currentPrefix} start tracking ${name}`);
         startSession(name);
         return;
-    } else if (afterTrackText.toLowerCase() === 'stop') {
+    } else if (startorstop.toLowerCase() === 'stop') {
         await viewSession(currentPrefix, name);
         deleteSession(currentPrefix, name);
         return;
-    }else if (afterTrackText.toLowerCase() === 'view') {
+    }else if (startorstop.toLowerCase() === 'view') {
         viewSession(currentPrefix, name);
         return;
     }
@@ -76,6 +130,7 @@ async function trackSession(text, currentPrefix, name) {
 
 async function startSession(name) {
     const player = await hypixel.getPlayer(name);
+    let sessions = {};
 
      if (fs.existsSync(sessionfilePath)) {
         try {
@@ -137,18 +192,14 @@ function deleteSession(currentPrefix, name) {
     }
 }
 //--------------------- Urchin  --------------------
-async function checkUrchin(text, currentPrefix) {
+async function checkUrchin(text, returnPrefix) {
+    const index = text.indexOf('?u');
+    let username = text[index + 1]
 
-    const afterUrchintext = text.split('?u ')[1];
-
-    if (!afterUrchintext) {
-        bot.chat(`${currentPrefix} Error: ?u <username>`);
+    if (!username) {
+        bot.chat(`${returnPrefix} Error: ?u <username>`);
         return;
     }
-
-    const parts = afterUrchintext.split(' ');
-    console.log(parts);
-    const username = parts[0];
 
     const url = `https://urchin.ws/player/${username}?key=${URCHIN_API_KEY}&sources=GAME,CHAT,MANUAL`;
 
@@ -157,67 +208,27 @@ async function checkUrchin(text, currentPrefix) {
 
     if (!data.tags || data.tags.length === 0) {
         console.log("No blacklist tags.");
-        bot.chat(`${currentPrefix} ${username} is not tagged`);
+        bot.chat(`${returnPrefix} ${username} is not tagged`);
     } else {
         console.log("BLACKLISTED:");
         for (let i = 0; i < data.tags.length; i++) {
             let tag = data.tags[i];
 
             console.log(`${tag.type} - ${tag.reason}`);
-            bot.chat(`${currentPrefix} ${username}: ${tag.type} - ${tag.reason}`);
+            bot.chat(`${returnPrefix} ${username}: ${tag.type} - ${tag.reason}`);
         }
     }
 }
-
-//--------------------- Get Name  --------------------
-function getName(text, currentPrefix, command) {
-    console.log('running getName function');
-    let name;
-    const afterCommand = text.split(command)[1]?.trim(); //get anything after the command
-
-    if (afterCommand) { //if theres something after ?bw
-        name = afterCommand.split(' ')[0]; // get first argument after the command
-
-
-        if (!statList.includes(name.toLowerCase()) && !gamemodeList.includes(name.toLowerCase()) && !sessionCommands.includes(name.toLowerCase())) { // if first argument is not a stat or gamemode, its the username
-            console.log(`100 Identified name: ${name}`);
-            return name;
-        }
-    }
-
-    let senderName;
-
-    if (currentPrefix === prefix[0]) { // Guild
-        senderName = text.split('Guild > ')[1].split(":")[0].split(" ");
-    } else { // Private
-        senderName = text.split('From ')[1].split(":")[0].split(" ");
-    }
-
-    for (let i = 0; i < senderName.length; i++) {
-        if (!senderName[i].includes('[')) {
-            console.log(`115 Identified sender username: ${senderName[i]}`);
-            return senderName[i];
-        }
-    }
-}
-    
+ 
 //--------------------- calc function --------------------
 async function calc(text, prefix) {
-    const afterCalctext = text.split('?calc ')[1];
+    const index = text.indexOf('?calc');
+    let afterCalctext = text.slice(index + 1);
+    console.log("248" , afterCalctext);
 
-    if (!afterCalctext) {
-        bot.chat(`${prefix} Error: ?calc <username> <statRatio> <target#>`);
-        return;
-    }
-
-    const parts = afterCalctext.split(' '); // ['ableness' , 'fkdr' , '20']
-    console.log(parts);
-    const username = parts[0];
-    console.log(username);
-    const statparam = parts[1];
-    console.log(statparam);
-    const target = parseFloat(parts[2]);
-    console.log(target);
+    const username = afterCalctext[0];
+    const statparam = afterCalctext[1];
+    const target = parseFloat(afterCalctext[2]);
 
     try {
         const player = await hypixel.getPlayer(username);
@@ -248,7 +259,7 @@ async function calc(text, prefix) {
 }
 
 //--------------------- get stats and output --------------------
-async function get_statValue(statValue) {
+function get_statValue(statValue) {
     switch (statValue) {
         case 'fkdr':
             return 'finalKDRatio';
@@ -276,7 +287,7 @@ async function get_statValue(statValue) {
     }
 }
 
-async function get_GamemodeClass(player, gamemode) {
+function get_GamemodeClass(player, gamemode) {
     const bedwars = player.stats.bedwars;
 
     switch (gamemode) {
@@ -302,29 +313,26 @@ async function get_GamemodeClass(player, gamemode) {
 }
 
 //--------------------- get stats and output --------------------
-async function handleBwCommand(text, prefix, username) {
+async function handleBwCommand(splitmessage, prefix, username) {
     try {
+        const index = splitmessage.indexOf('?bw');
+        let afterBWText = splitmessage.slice(index + 1);
 
         let stat = null;
         let gamemode = 'overall';
-
         let gamemodeStats;
-        
-        const afterBWtext = text.split('?bw')[1]?.trim() || ''; // part of messaege after ?bw, if nothing after it will be undefined
-        const afterbwArray = afterBWtext === '' ? [] : afterBWtext.split(' '); // split into an array, will have general error if afterBWtext is undefined
 
-        console.log(`245 After splitting '?bw':`, afterBWtext);
-        console.log(`246 Split parts:`, afterbwArray);
+        for (let i = 0; i < afterBWText.length; i++) {
 
-
-        for (let i = 0; i < afterbwArray.length; i++) {
-            const part = afterbwArray[i].toLowerCase();
+            const part = afterBWText[i].toLowerCase();
             if (statList.includes(part) && !stat) {
                 stat = part;
                 console.log(`253 Identified stat: ${stat}`);
             } else if (gamemodeList.includes(part) && gamemode === 'overall') {
                 gamemode = part;
                 console.log(`256 Identified gamemode: ${gamemode}`);
+            }else if (!gamemodeList.includes(part) && !statList.includes(part)) {
+                username = part;
             }
         }
 
@@ -346,7 +354,7 @@ async function handleBwCommand(text, prefix, username) {
             return;
         }
 
-        if (!stat) {
+        if (!stat) { // just ?bw
             const level = gamemodeStats.level || 0;
             const fkdr = gamemodeStats.finalKDRatio || 0;
             const wlr = gamemodeStats.WLRatio || 0;
@@ -358,7 +366,6 @@ async function handleBwCommand(text, prefix, username) {
             return;
         }
 
-        console.log(`290 ${gamemodeStats}`);
 
         let output;
         try {
@@ -369,13 +376,12 @@ async function handleBwCommand(text, prefix, username) {
             } else if (stat === 'bedslost') {
                 output = gamemodeStats.beds?.lost || 0;
             } else {
-                const statKey = await get_statValue(stat); // if not relating to beds, get the specific stat
+                const statKey = get_statValue(stat); // if not relating to beds, get the specific stat
                 output = gamemodeStats[statKey] || 0;
             }
 
         } catch (error) {
             bot.chat(`${prefix} Error: Could not retrieve stat '${stat}'.`);
-            console.error('307 Stat retrieval error:', error.message);
             return;
         }
 
@@ -391,9 +397,15 @@ bot.on('spawn', () => {
     console.log('Bot spawned');
 });
 
-bot.on('error', console.error);
-
-bot.on('end', () => {
-    console.log('Bot disconnected');
+bot.on('end', (reason) => {
+    console.log(`Bot disconnected: ${reason}`);
     process.exit();
+});
+
+bot.on('error', (err) => {
+    console.log(`Bot error: ${err}`);
+});
+
+bot.on('kicked', (reason) => {
+    console.log(`Bot kicked: ${reason}`);
 });
