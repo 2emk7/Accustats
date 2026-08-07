@@ -80,6 +80,8 @@ bot.on('message', async (message) => {
         handleBwCommand(splitmessage, replyprefix, senderusername);
     } else if(text.includes('?session')){
         trackSession(splitmessage, replyprefix, senderusername);
+    } else if(text.includes('?say')){
+        makeBotSay(splitmessage, replyprefix);
     } else if (text.includes('You cannot say the same message twice!')) {
         bot.chat(`${replyprefix} Error: Hypixel doesnt allow repeat outputs`);
     }
@@ -189,30 +191,89 @@ function deleteSession(currentPrefix, name) {
 //--------------------- Urchin  --------------------
 async function checkUrchin(text, returnPrefix) {
     const index = text.indexOf('?u');
-    let username = text[index + 1]
+    let username = text[index + 1];
 
     if (!username) {
         bot.chat(`${returnPrefix} Error: ?u <username>`);
         return;
     }
 
-    const url = `https://urchin.ws/player/${username}?key=${URCHIN_API_KEY}&sources=GAME,CHAT,MANUAL`;
+    const url = `https://api.urchin.gg/v3/player/tags?player=${username}`;
 
-    const response = await fetch(url);
-    const data = await response.json();
+    try {
+        const response = await fetch(url, {
+            headers: {
+                'X-API-Key': URCHIN_API_KEY
+            }
+        });
 
-    if (!data.tags || data.tags.length === 0) {
-        console.log("No blacklist tags.");
-        bot.chat(`${returnPrefix} ${username} is not tagged`);
-    } else {
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.log("Urchin API error:", data);
+            bot.chat(`${returnPrefix} Urchin error: ${data.error || response.status}`);
+            return;
+        }
+
+        if (!data.tags || data.tags.length === 0) {
+            console.log("No blacklist tags.");
+            bot.chat(`${returnPrefix} ${username} is not tagged`);
+            return;
+        }
+
         console.log("BLACKLISTED:");
+
         for (let i = 0; i < data.tags.length; i++) {
             let tag = data.tags[i];
 
-            console.log(`${tag.type} - ${tag.reason}`);
-            bot.chat(`${returnPrefix} ${username}: ${tag.type} - ${tag.reason}`);
+            console.log(`${tag.tag_type} - ${tag.reason}`);
+
+            const message = `${username}: ${tag.tag_type} - ${tag.reason}`;
+            const chunks = splitMessage(message, 75);
+
+            for (let j = 0; j < chunks.length; j++) {
+                bot.chat(`${returnPrefix} ${chunks[j]}`);
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
+
+    } catch (error) {
+        console.error("Urchin request failed:", error);
+
+        if (error.cause?.code === 'ECONNRESET') {
+            bot.chat(`${returnPrefix} Urchin connection failed, try again.`);
+        } else {
+            bot.chat(`${returnPrefix} Error checking ${username}`);
         }
     }
+}
+
+//--------------------------------------
+
+function splitMessage(text, maxLength) {
+    const words = text.split(' ');
+    const chunks = [];
+    let current = '';
+
+    for (let i = 0; i < words.length; i++) {
+        const word = words[i];
+
+        if ((current + ' ' + word).trim().length > maxLength) {
+            if (current.length > 0) {
+                chunks.push(current);
+            }
+
+            current = word;
+        } else {
+            current = (current + ' ' + word).trim();
+        }
+    }
+
+    if (current.length > 0) {
+        chunks.push(current);
+    }
+
+    return chunks;
 }
  
 //--------------------- calc function --------------------
@@ -251,6 +312,15 @@ async function calc(text, prefix) {
         bot.chat(`${prefix} Error: ?calc <username> <statRatio> <target#>`);
         console.error('Error:', error.message);
     }
+}
+
+//--------------------- trolls --------------------- 
+function makeBotSay(text, prefix) {
+    const index = text.indexOf('?say'); 
+    console.log(`[DEBUG] makeBotSay called with text: ${text}`);
+    let whereto = text[index + 1]
+    let message = text.slice(index + 2).join(' ');
+    bot.chat(`/${whereto} ${message}`);
 }
 
 //--------------------- get stats and output --------------------
