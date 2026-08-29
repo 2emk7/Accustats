@@ -3,7 +3,6 @@ const translate = require("translate-google");
 const Hypixel = require('hypixel-api-reborn');
 require('dotenv').config();
 const fs = require('fs');
-const URCHIN_API_KEY = process.env.URCHIN_API_KEY;
 const hypixel = new Hypixel.Client(process.env.HYPIXEL_API_KEY);
 const sessionfilePath = './session.json';
 const statList = ['fkdr', 'finals', 'wlr', 'finaldeaths', 'wins', 'losses', 'level', 'bblr', 'blr', 'beds', 'bedslost'];
@@ -188,65 +187,6 @@ function deleteSession(currentPrefix, name) {
         return;
     }
 }
-//--------------------- Urchin  --------------------
-async function checkUrchin(text, returnPrefix) {
-    const index = text.indexOf('?u');
-    let username = text[index + 1];
-
-    if (!username) {
-        bot.chat(`${returnPrefix} Error: ?u <username>`);
-        return;
-    }
-
-    const url = `https://api.urchin.gg/v3/player/tags?player=${username}`;
-
-    try {
-        const response = await fetch(url, {
-            headers: {
-                'X-API-Key': URCHIN_API_KEY
-            }
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            console.log("Urchin API error:", data);
-            bot.chat(`${returnPrefix} Urchin error: ${data.error || response.status}`);
-            return;
-        }
-
-        if (!data.tags || data.tags.length === 0) {
-            console.log("No blacklist tags.");
-            bot.chat(`${returnPrefix} ${username} is not tagged`);
-            return;
-        }
-
-        console.log("BLACKLISTED:");
-
-        for (let i = 0; i < data.tags.length; i++) {
-            let tag = data.tags[i];
-
-            console.log(`${tag.tag_type} - ${tag.reason}`);
-
-            const message = `${username}: ${tag.tag_type} - ${tag.reason}`;
-            const chunks = splitMessage(message, 75);
-
-            for (let j = 0; j < chunks.length; j++) {
-                bot.chat(`${returnPrefix} ${chunks[j]}`);
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-        }
-
-    } catch (error) {
-        console.error("Urchin request failed:", error);
-
-        if (error.cause?.code === 'ECONNRESET') {
-            bot.chat(`${returnPrefix} Urchin connection failed, try again.`);
-        } else {
-            bot.chat(`${returnPrefix} Error checking ${username}`);
-        }
-    }
-}
 
 //--------------------------------------
 
@@ -312,15 +252,6 @@ async function calc(text, prefix) {
         bot.chat(`${prefix} Error: ?calc <username> <statRatio> <target#>`);
         console.error('Error:', error.message);
     }
-}
-
-//--------------------- trolls --------------------- 
-function makeBotSay(text, prefix) {
-    const index = text.indexOf('?say'); 
-    console.log(`[DEBUG] makeBotSay called with text: ${text}`);
-    let whereto = text[index + 1]
-    let message = text.slice(index + 2).join(' ');
-    bot.chat(`/${whereto} ${message}`);
 }
 
 //--------------------- get stats and output --------------------
