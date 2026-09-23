@@ -84,6 +84,20 @@ Translates messages into english
 
 Command : ?t <message>
 
+**UPDATE API KEY** *(owner only)*
+
+Updates the Hypixel or Urchin API key the bot is using, without needing to edit the .env file by hand. Change takes effect immediately and is saved to .env so it survives a restart.
+
+Command : ?newapi <hypixel/urchin> <newkey>
+
+Example) ?newapi hypixel abc123-def456 ---> accusant[G3]: hypixel API key updated.
+
+Two ways to authorize someone:
+- **OWNER_USERNAME** in .env — always authorized, regardless of guild rank.
+- **ALLOWED_RANKS** in .env — comma-separated list of guild ranks that are also authorized, e.g. `ALLOWED_RANKS=Guild Master,Officer`. The bot checks the sender's actual rank in their Hypixel guild in real time, so promotions/demotions in-game take effect immediately without touching the bot.
+
+Everyone else gets a permission error. If a rank check fails for any reason (API error, sender not in a guild, etc.) access is denied by default rather than granted.
+
 **QUICK REFERENCE**
 
 *BASIC STATS:*
@@ -99,4 +113,3 @@ Command : ?t <message>
 
 *URCHIN*
 ?u <player>                     # Check urchin tag
-

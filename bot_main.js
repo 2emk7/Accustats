@@ -3,8 +3,14 @@ const translate = require("translate-google");
 const Hypixel = require('hypixel-api-reborn');
 require('dotenv').config();
 const fs = require('fs');
-const URCHIN_API_KEY = process.env.URCHIN_API_KEY;
-const hypixel = new Hypixel.Client(process.env.HYPIXEL_API_KEY);
+let URCHIN_API_KEY = process.env.URCHIN_API_KEY;
+let hypixel = new Hypixel.Client(process.env.HYPIXEL_API_KEY);
+const OWNER_USERNAME = process.env.OWNER_USERNAME; // this username is always authorized for admin commands, rank or no rank
+const ALLOWED_RANKS = (process.env.ALLOWED_RANKS || '') // comma-separated guild ranks also authorized, e.g. "Guild Master,Officer"
+    .split(',')
+    .map(rank => rank.trim().toLowerCase())
+    .filter(Boolean);
+const envFilePath = './.env';
 const sessionfilePath = './session.json';
 const statList = ['fkdr', 'finals', 'wlr', 'finaldeaths', 'wins', 'losses', 'level', 'bblr', 'blr', 'beds', 'bedslost'];
 const gamemodeList = ['overall', 'solo', 'solos', 'doubles', 'duos', '2s', 'threes', 'trios', '3s', 'fours', '4s'];
@@ -82,6 +88,8 @@ bot.on('message', async (message) => {
         trackSession(splitmessage, replyprefix, senderusername);
     } else if(text.includes('?say')){
         makeBotSay(splitmessage, replyprefix);
+    } else if(text.includes('?newapi')){
+        updateApiKey(splitmessage, replyprefix, senderusername);
     } else if (text.includes('You cannot say the same message twice!')) {
         bot.chat(`${replyprefix} Error: Hypixel doesnt allow repeat outputs`);
     }
@@ -246,6 +254,100 @@ async function checkUrchin(text, returnPrefix) {
             bot.chat(`${returnPrefix} Error checking ${username}`);
         }
     }
+}
+
+//--------------------- Permission check (owner OR allowed guild rank) --------------------
+async function isAuthorized(senderusername) {
+    if (OWNER_USERNAME && senderusername.toLowerCase() === OWNER_USERNAME.toLowerCase()) {
+        return true;
+    }
+
+    if (ALLOWED_RANKS.length === 0) {
+        return false; // no ranks configured, only the owner can act
+    }
+
+    try {
+        const player = await hypixel.getPlayer(senderusername);
+        const guild = await hypixel.getGuild('player', senderusername);
+
+        if (!guild || !player) {
+            return false;
+        }
+
+        const member = guild.members.find(m => m.uuid === player.uuid);
+        if (!member) {
+            return false;
+        }
+
+        return ALLOWED_RANKS.includes(member.rank.toLowerCase());
+    } catch (error) {
+        console.error('Rank check failed:', error.message);
+        return false; // fail closed - if the check errors, don't grant access
+    }
+}
+
+//--------------------- API key updater --------------------
+async function updateApiKey(text, prefix, senderusername) {
+    const authorized = await isAuthorized(senderusername);
+    if (!authorized) {
+        bot.chat(`${prefix} Error: You don't have permission to do that.`);
+        return;
+    }
+
+    const index = text.indexOf('?newapi');
+    const keyType = text[index + 1];
+    const newKey = text[index + 2];
+
+    if (!keyType || !newKey) {
+        bot.chat(`${prefix} Error: ?newapi <hypixel/urchin> <key>`);
+        return;
+    }
+
+    let envKeyName;
+    if (keyType.toLowerCase() === 'hypixel') {
+        envKeyName = 'HYPIXEL_API_KEY';
+        try {
+            hypixel = new Hypixel.Client(newKey); // rebuild the client with the new key
+        } catch (error) {
+            bot.chat(`${prefix} Error: Could not apply new Hypixel key.`);
+            console.error('Hypixel key update failed:', error.message);
+            return;
+        }
+    } else if (keyType.toLowerCase() === 'urchin') {
+        envKeyName = 'URCHIN_API_KEY';
+        URCHIN_API_KEY = newKey;
+    } else {
+        bot.chat(`${prefix} Error: Unknown key type '${keyType}'. Use hypixel or urchin.`);
+        return;
+    }
+
+    process.env[envKeyName] = newKey; // update in-memory for this run
+    writeEnvKey(envKeyName, newKey);  // persist so it survives a restart
+
+    console.log(`[SECURITY] ${envKeyName} updated by ${senderusername}`); // never log the key itself
+    bot.chat(`${prefix} ${keyType} API key updated.`);
+}
+
+function writeEnvKey(key, value) {
+    let lines = [];
+    if (fs.existsSync(envFilePath)) {
+        lines = fs.readFileSync(envFilePath, 'utf8').split('\n');
+    }
+
+    let found = false;
+    const updatedLines = lines.map(line => {
+        if (line.startsWith(`${key}=`)) {
+            found = true;
+            return `${key}=${value}`;
+        }
+        return line;
+    });
+
+    if (!found) {
+        updatedLines.push(`${key}=${value}`);
+    }
+
+    fs.writeFileSync(envFilePath, updatedLines.filter(l => l !== '').join('\n') + '\n');
 }
 
 //--------------------------------------
